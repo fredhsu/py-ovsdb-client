@@ -12,6 +12,7 @@ BUFFER_SIZE = 4096
 # TODO: Could start by getting the DB name and using that for ongoing requests
 # TODO: How to keep an eye out for montor, update, echo messages?
 def gather_reply(socket):
+    print "Waiting for reply"
     result = ""
     # we got the whole thing if we received all the fields
     while "error" not in result or "id" not in result or "result" not in result:
@@ -48,12 +49,9 @@ def listen_for_messages(sock, message_queues):
             else:
                 print "error"
 
-def list_dbs(socket, current_id):
-    list_dbs_query =  '{"method":"list_dbs", "params":[], "id": %d}' % (current_id)
-    socket.send(list_dbs_query)
-    reply = socket.recv(BUFFER_SIZE)
-    # add some error checking here to confirm that the reply is correct and has right id
-    return json.loads(reply)['result']
+def list_dbs():
+    list_dbs_query =  {"method":"list_dbs", "params":[], "id": 0}
+    return json.dumps(list_dbs_query)
 
 def get_schema(socket, db = DEFAULT_DB, current_id = 0):
     list_schema = {"method": "get_schema", "params":[db_name], "id": current_id}
@@ -112,9 +110,11 @@ s.connect((OVSDB_IP, OVSDB_PORT))
 
 current_id = 0
 
-db_list = list_dbs(s, current_id)
+s.send(list_dbs())
+reply = gather_reply(s)
+db_list = json.loads(reply)
 print db_list
-db_name = db_list[0]
+db_name = db_list['result'][0]
 print "list bridges:"
 bridge_list = list_bridges(s, db_name)
 
