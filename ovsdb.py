@@ -19,11 +19,10 @@ def gather_reply(socket):
         result += reply
     return result
 
-def listen_for_messages(sock):
+def listen_for_messages(sock, message_queues):
+    # To send something, add a message to queue and append sock to outputs
     inputs = [sock, sys.stdin]
     outputs = []
-    message_queues = {}
-    message_queues[sock] = Queue.Queue()
     while sock:
         readable, writable, exceptional = select(inputs, outputs, [])
         for s in readable:
@@ -35,7 +34,7 @@ def listen_for_messages(sock):
                 #   send_echo(message_
                 message_queues[sock].put(data)
                 outputs.append(sock)
-                print data
+                print "recv:" + data
             elif s is sys.stdin:
                 print sys.stdin.readline()
                 sock.close()
@@ -62,7 +61,7 @@ def get_schema(socket, db = DEFAULT_DB, current_id = 0):
     result = gather_reply(socket)
     return json.loads(result)
 
-def get_schema_version(server, db = DEFAULT_DB):
+def get_schema_version(socket, db = DEFAULT_DB):
     db_schema = get_schema(socket, db)
     return db_schema['version']
 
@@ -95,7 +94,8 @@ def locking():
     return
 
 def echo():
-    return
+    echo_msg = {"method":"echo","id":"echo","params":[]}
+    return json.dumps(echo_msg)
 
 def dump(server, db):
     return
@@ -104,12 +104,6 @@ def list_bridges(socket, db = DEFAULT_DB):
     # What if we replaced with a more specific query
     # columns = {"Bridge":{"name"}}
     columns = {"Port":{"columns":["fake_bridge","interfaces","name","tag"]},"Controller":{"columns":[]},"Interface":{"columns":["name"]},"Open_vSwitch":{"columns":["bridges","cur_cfg"]},"Bridge":{"columns":["controller","fail_mode","name","ports"]}}
-    #msg = """
-    #    { "method": "monitor",
-    #            "params":["Open_vSwitch",null,{"Port":{"columns":["fake_bridge","interfaces","name","tag"]},"Controller":{"columns":[]},"Interface":{"columns":["name"]},"Open_vSwitch":{"columns":["bridges","cur_cfg"]},"Bridge":{"columns":["controller","fail_mode","name","ports"]}}],
-    #                    "id": 0} 
-    #"""
-    #return monitor(socket, columns, db)['result']
     # TODO: cancel the monitor after we're done?
     return monitor(socket, columns, db)
 
@@ -136,4 +130,8 @@ for bridge in bridges.values():
 
 #columns = {"Bridge":{"columns":["name"]}}
 #print monitor(s, columns, 1)
-listen_for_messages(s)
+
+# TODO: Put this in a thread and use Queues to send/recv data from the thread
+message_queues = {}
+message_queues[s] = Queue.Queue()
+listen_for_messages(s, message_queues)
