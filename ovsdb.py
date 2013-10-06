@@ -76,13 +76,9 @@ def transact(server, transactions):
     # Variants of this will add stuff
     return
 
-def monitor(socket, columns, monitor_id = None, db = DEFAULT_DB):
-    # Variants of this will do ovs-vsctl list commands
+def monitor(columns, monitor_id = None, db = DEFAULT_DB):
     msg = {"method":"monitor", "params":[db, monitor_id, columns], "id":0}
-    #print json.dumps(msg)
-    socket.send(json.dumps(msg))
-    reply = gather_reply(socket)
-    return reply
+    return json.dumps(msg)
 
 def monitor_cancel():
     return
@@ -97,38 +93,39 @@ def echo():
 def dump(server, db):
     return
 
-def list_bridges(socket, db = DEFAULT_DB):
+def list_bridges(db = DEFAULT_DB):
     # What if we replaced with a more specific query
     # columns = {"Bridge":{"name"}}
     columns = {"Port":{"columns":["fake_bridge","interfaces","name","tag"]},"Controller":{"columns":[]},"Interface":{"columns":["name"]},"Open_vSwitch":{"columns":["bridges","cur_cfg"]},"Bridge":{"columns":["controller","fail_mode","name","ports"]}}
     # TODO: cancel the monitor after we're done?
-    return monitor(socket, columns, db)
+    return monitor(columns, db)
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((OVSDB_IP, OVSDB_PORT))
+if __name__ == '__main__':
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((OVSDB_IP, OVSDB_PORT))
 
-current_id = 0
+    current_id = 0
 
-s.send(list_dbs())
-db_list = gather_reply(s)
-db_name = db_list['result'][0]
-print "list bridges:"
-bridge_list = list_bridges(s, db_name)
+    s.send(list_dbs())
+    db_list = gather_reply(s)
+    db_name = db_list['result'][0]
+    print "list bridges:"
+    s.send(list_bridges())
+    bridge_list = gather_reply(s)
+    print bridge_list
+    bridges = bridge_list['result']['Bridge']
+    print "\nbridges\n"
+    print bridges.values()
+    for bridge in bridges.values():
+        print "---"
+        print bridge['new']['name']
+    #db_schema = get_schema(s, db_name)
+    #print db_schema
 
-print bridge_list
-bridges = bridge_list['result']['Bridge']
-print "\nbridges\n"
-print bridges.values()
-for bridge in bridges.values():
-    print "---"
-    print bridge['new']['name']
-#db_schema = get_schema(s, db_name)
-#print db_schema
+    #columns = {"Bridge":{"columns":["name"]}}
+    #print monitor(s, columns, 1)
 
-#columns = {"Bridge":{"columns":["name"]}}
-#print monitor(s, columns, 1)
-
-# TODO: Put this in a thread and use Queues to send/recv data from the thread
-message_queues = {}
-message_queues[s] = Queue.Queue()
-listen_for_messages(s, message_queues)
+    # TODO: Put this in a thread and use Queues to send/recv data from the thread
+    message_queues = {}
+    message_queues[s] = Queue.Queue()
+    listen_for_messages(s, message_queues)
