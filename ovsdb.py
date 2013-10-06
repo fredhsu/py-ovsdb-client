@@ -18,7 +18,7 @@ def gather_reply(socket):
     while "error" not in result or "id" not in result or "result" not in result:
         reply = socket.recv(BUFFER_SIZE)
         result += reply
-    return result
+    return json.loads(result)
 
 def listen_for_messages(sock, message_queues):
     # To send something, add a message to queue and append sock to outputs
@@ -57,7 +57,7 @@ def get_schema(socket, db = DEFAULT_DB, current_id = 0):
     list_schema = {"method": "get_schema", "params":[db_name], "id": current_id}
     socket.send(json.dumps(list_schema))
     result = gather_reply(socket)
-    return json.loads(result)
+    return result
 
 def get_schema_version(socket, db = DEFAULT_DB):
     db_schema = get_schema(socket, db)
@@ -82,8 +82,7 @@ def monitor(socket, columns, monitor_id = None, db = DEFAULT_DB):
     #print json.dumps(msg)
     socket.send(json.dumps(msg))
     reply = gather_reply(socket)
-    print reply
-    return json.loads(reply)
+    return reply
 
 def monitor_cancel():
     return
@@ -111,9 +110,7 @@ s.connect((OVSDB_IP, OVSDB_PORT))
 current_id = 0
 
 s.send(list_dbs())
-reply = gather_reply(s)
-db_list = json.loads(reply)
-print db_list
+db_list = gather_reply(s)
 db_name = db_list['result'][0]
 print "list bridges:"
 bridge_list = list_bridges(s, db_name)
