@@ -1,0 +1,1 @@
+This is a client interface to the Open vSwitch DB (OVSDB) protocol.  There are still many functions to be fleshed out and the code is pretty messy at this point.  There is also a function to keep the connection open to get updates from the database using `select` to make it non-blocking.
